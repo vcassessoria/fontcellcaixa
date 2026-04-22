@@ -966,7 +966,10 @@ const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/t
 // ══════════════════════════════════════════════════
 let transactions = [];
 let previewData  = [];
-let selMonth     = '';
+// Inicializa com o mês atual — Dashboard mostra o mês corrente por padrão
+// O usuário pode clicar em "Todos" para ver o acumulado histórico completo
+const _hoje = new Date();
+let selMonth = _hoje.getFullYear() + '-' + String(_hoje.getMonth()+1).padStart(2,'0');
 let isSyncing    = false;
 let lastSyncTime = null;
 let syncPending  = false;   // true when local has unsaved changes
@@ -1719,7 +1722,12 @@ function updateBadge() {
 }
 
 function renderPills() {
-  const months = [...new Set(transactions.map(t=>t.data?t.data.slice(0,7):null).filter(Boolean))].sort();
+  // Garante que o mês atual sempre aparece como opção, mesmo sem lançamentos nele
+  const mesAtual = (new Date()).getFullYear() + '-' + String((new Date()).getMonth()+1).padStart(2,'0');
+  const fromTxs  = [...new Set(transactions.map(t=>t.data?t.data.slice(0,7):null).filter(Boolean))];
+  if (!fromTxs.includes(mesAtual)) fromTxs.push(mesAtual);
+  const months = fromTxs.sort();
+
   const wrap = document.getElementById('month-pills');
   if (!months.length) { wrap.innerHTML=''; return; }
   wrap.innerHTML = `<div class="month-pill ${!selMonth?'active':''}" onclick="selM('')">Todos</div>` +
