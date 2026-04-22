@@ -1754,35 +1754,53 @@ function renderBarChart() {
     set('bar-chart','<div style="color:var(--text3);font-size:12px;width:100%;display:flex;align-items:center;justify-content:center;height:100%">Sem dados</div>');
     set('bar-labels',''); return;
   }
+  // weeks: chave = YYYY-MM-DD do domingo da semana (ordena corretamente entre anos)
   const weeks = {};
   for (const tx of t) {
     if (!tx.data) continue;
     const d = new Date(tx.data+'T12:00:00');
-    const k = weekKey(d);
+    const k = weekSortKey(d);
     if (!weeks[k]) weeks[k]={e:0,s:0};
     tx.tipo==='entrada' ? weeks[k].e+=tx.valor||0 : weeks[k].s+=tx.valor||0;
   }
-  const keys = Object.keys(weeks).sort();
+  const keys = Object.keys(weeks).sort(); // ISO YYYY-MM-DD ordena cronologicamente
   if (!keys.length) return;
   const maxV = Math.max(...keys.map(k=>Math.max(weeks[k].e,weeks[k].s)),1);
-  set('bar-chart', keys.map(k=>`<div class="bar-group" style="position:relative" onclick="this.querySelector('.bar-tooltip')&&this.querySelector('.bar-tooltip').classList.toggle('visible')">
-    <div class="bar entrada" style="height:${Math.max(weeks[k].e/maxV*100,2)}%" title="Entradas: ${fmt(weeks[k].e)}"></div>
-    <div class="bar saida" style="height:${Math.max(weeks[k].s/maxV*100,2)}%" title="Saídas: ${fmt(weeks[k].s)}"></div>
-    <div class="bar-tooltip" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:10px;white-space:nowrap;z-index:10;pointer-events:none">
-      <div style="color:var(--green)">↑ ${fmt(weeks[k].e)}</div>
-      <div style="color:var(--red)">↓ ${fmt(weeks[k].s)}</div>
-    </div>
-  </div>`).join(''));
-  // Add hover tooltip behavior via CSS
-  document.querySelectorAll('.bar-group').forEach(g => {
-    g.addEventListener('mouseenter', () => { const t = g.querySelector('.bar-tooltip'); if(t) t.style.display='block'; });
-    g.addEventListener('mouseleave', () => { const t = g.querySelector('.bar-tooltip'); if(t) t.style.display='none'; });
-  });
-  set('bar-labels', keys.map(k=>`<div class="bar-label">${k}</div>`).join(''));
+  const barHTML = keys.map(k=>{
+    const label = weekLabel(k);
+    return `<div class="bar-group" style="position:relative"
+      onmouseenter="barTooltip(this,'show')" onmouseleave="barTooltip(this,'hide')"
+      ontouchstart="barTooltip(this,'toggle')" ontouchend="event.preventDefault()">
+      <div class="bar entrada" style="height:${Math.max(weeks[k].e/maxV*100,2)}%" title="Entradas: ${fmt(weeks[k].e)}"></div>
+      <div class="bar saida"   style="height:${Math.max(weeks[k].s/maxV*100,2)}%" title="Saídas: ${fmt(weeks[k].s)}"></div>
+      <div class="bar-tooltip" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;font-size:10px;white-space:nowrap;z-index:10;pointer-events:none">
+        <div style="color:var(--text3);font-size:9px;text-align:center;margin-bottom:2px">sem. ${label}</div>
+        <div style="color:var(--green)">↑ ${fmt(weeks[k].e)}</div>
+        <div style="color:var(--red)">↓ ${fmt(weeks[k].s)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  set('bar-chart', barHTML);
+  set('bar-labels', keys.map(k=>`<div class="bar-label">${weekLabel(k)}</div>`).join(''));
 }
-function weekKey(d) {
-  const s=new Date(d); s.setDate(s.getDate()-s.getDay());
-  return s.getDate().toString().padStart(2,'0')+'/'+(s.getMonth()+1).toString().padStart(2,'0');
+// Tooltip handler sem event listeners acumulados (usa atributos inline)
+function barTooltip(el, action) {
+  const tip = el.querySelector('.bar-tooltip');
+  if (!tip) return;
+  if (action === 'show')   tip.style.display = 'block';
+  else if (action === 'hide')   tip.style.display = 'none';
+  else if (action === 'toggle') tip.style.display = tip.style.display === 'block' ? 'none' : 'block';
+}
+// Chave de ordenação ISO (YYYY-MM-DD do início da semana)
+function weekSortKey(d) {
+  const s = new Date(d);
+  s.setDate(s.getDate() - s.getDay());
+  return s.getFullYear()+'-'+String(s.getMonth()+1).padStart(2,'0')+'-'+String(s.getDate()).padStart(2,'0');
+}
+// Label legível DD/MM
+function weekLabel(sortKey) {
+  const [,m,d] = sortKey.split('-');
+  return d+'/'+m;
 }
 
 function renderCatLists() {
@@ -1791,9 +1809,12 @@ function renderCatLists() {
   for (const tx of t) tx.tipo==='entrada' ? byE[tx.cat]=(byE[tx.cat]||0)+(tx.valor||0) : byS[tx.cat]=(byS[tx.cat]||0)+(tx.valor||0);
 
   const renderList = (map, cats, elId) => {
-    const maxV = Math.max(...Object.values(map),1);
+    const vals = Object.values(map);
+    const maxV = vals.length ? Math.max(...vals, 1) : 1;
     const items = cats.map(c=>({...c,v:map[c.id]||0})).filter(c=>c.v>0).sort((a,b)=>b.v-a.v);
-    document.getElementById(elId).innerHTML = items.length
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = items.length
       ? items.map(c=>`<div class="cat-item"><div class="cat-dot" style="background:${c.color}"></div><div class="cat-name">${c.label}</div><div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:${c.v/maxV*100}%;background:${c.color}"></div></div><div class="cat-value">${fmt(c.v)}</div></div>`).join('')
       : '<div style="color:var(--text3);font-size:12px">Sem dados</div>';
   };
@@ -1820,12 +1841,15 @@ function renderMargem() {
     const rec  = t.filter(x=>x.tipo==='entrada'&&ln.recCat.includes(x.cat)).reduce((a,b)=>a+(b.valor||0),0);
     if (!rec) continue;
     const cost = t.filter(x=>x.tipo==='saida'&&ln.costCat.includes(x.cat)).reduce((a,b)=>a+(b.valor||0),0);
-    const m = ((rec-cost)/rec*100);
-    const cor = m>=50?'var(--green-mid)':m>=20?'#b8860b':'var(--red-mid)';
-    html += `<div class="prog-item"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><div class="prog-label">${ln.label}</div><div style="font-size:11px;color:${cor}">${m.toFixed(0)}%</div></div><div class="prog-bar"><div class="prog-fill" style="width:${Math.max(0,Math.min(m,100))}%;background:${cor}"></div></div><div style="display:flex;justify-content:space-between;margin-top:2px"><div style="font-size:10px;color:var(--text3)">Rec: ${fmt(rec)}</div><div style="font-size:10px;color:var(--text3)">CMV: ${fmt(cost)}</div></div></div>`;
+    const m = rec > 0 ? ((rec-cost)/rec*100) : 0;
+    const mSafe = isNaN(m) || !isFinite(m) ? 0 : m;
+    const cor = mSafe>=50?'var(--green-mid)':mSafe>=20?'#b8860b':'var(--red-mid)';
+    const barW = Math.max(0, Math.min(mSafe, 100));
+    html += `<div class="prog-item"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><div class="prog-label">${ln.label}</div><div style="font-size:11px;color:${cor}">${mSafe.toFixed(0)}%</div></div><div class="prog-bar"><div class="prog-fill" style="width:${barW}%;background:${cor}"></div></div><div style="display:flex;justify-content:space-between;margin-top:2px"><div style="font-size:10px;color:var(--text3)">Rec: ${fmt(rec)}</div><div style="font-size:10px;color:var(--text3)">CMV: ${fmt(cost)}</div></div></div>`;
   }
   if (totalFixed>0) html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><div style="font-size:11px;color:var(--text3)">Despesas fixas totais</div><div style="font-size:11px;color:var(--red)">${fmt(totalFixed)}</div></div>${totalRec>0?`<div style="font-size:10px;color:var(--text3)">${(totalFixed/totalRec*100).toFixed(0)}% da receita bruta</div>`:''}</div>`;
-  document.getElementById('margem-chart').innerHTML = html || '<div style="color:var(--text3);font-size:12px">Sem dados de receita</div>';
+  const margemEl = document.getElementById('margem-chart');
+  if (margemEl) margemEl.innerHTML = html || '<div style="color:var(--text3);font-size:12px">Sem dados de receita</div>';
 }
 
 // ══════════════════════════════════════════════════
