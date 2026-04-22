@@ -2744,45 +2744,87 @@ function renderCalendario(hoje, year, month, em7dias) {
 }
 
 function renderFixasList(year, month, hoje, em7dias) {
-  set('fixas-count', CONTAS_FIXAS.length + ' contas · R$ ' + CONTAS_FIXAS.reduce((a,c)=>a+c.valor,0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'/mês');
+  set('fixas-count', CONTAS_FIXAS.length + ' contas · R$ ' + CONTAS_FIXAS.reduce((a,c)=>a+c.valor,0).toLocaleString('pt-BR',{minimumFractionDigits:2})+'/mês');
 
   const sorted = [...CONTAS_FIXAS].sort((a,b) => getDiaVenc(a,year,month) - getDiaVenc(b,year,month));
-  set('fixas-list', `<table style="width:100%;border-collapse:collapse">
-    <thead><tr>
-      <th style="text-align:left;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Conta</th>
-      <th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Venc.</th>
-      <th style="text-align:right;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Valor</th>
-      <th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Status</th>
-    </tr></thead>
-    <tbody>
-      ${sorted.map(c => {
-        const dia   = getDiaVenc(c, year, month);
-        const dt    = new Date(year, month, dia);
-        const pago  = contaFoiPaga(c, year, month);
-        const isPast = dt < hoje;
-        const is7   = dt >= hoje && dt <= em7dias;
-        let statusHtml, rowStyle='';
-        if (pago)        { statusHtml='<span class="tag" style="background:var(--green-dim);color:var(--green)">✓ pago</span>'; }
-        else if (isPast) { statusHtml='<span class="tag" style="background:var(--red-dim);color:var(--red)">⚠ vencido</span>'; rowStyle='background:rgba(240,90,90,.04)'; }
-        else if (is7)    { statusHtml='<span class="tag" style="background:var(--amber-dim);color:var(--amber)">⏰ em 7 dias</span>'; rowStyle='background:rgba(240,180,41,.04)'; }
-        else             { statusHtml='<span class="tag" style="background:var(--surface2);color:var(--text3)">aguardando</span>'; }
-        const diaLabel = c.tipo==='util' ? `${dia}º (util)` : `dia ${dia}`;
-        return `<tr style="${rowStyle}">
-          <td style="padding:9px 8px;font-size:12px;border-bottom:1px solid var(--border)">${esc(c.label)}${c.variavel?'<span style="font-size:10px;color:var(--text3);margin-left:6px">variável</span>':''}</td>
-          <td style="padding:9px 8px;font-size:11px;color:var(--text2);text-align:center;border-bottom:1px solid var(--border)">${diaLabel}</td>
-          <td style="padding:9px 8px;text-align:right;border-bottom:1px solid var(--border)" class="amount-neg">
-            ${c.variavel
-              ? `<input type="number" value="${c.valor}" min="0" step="50"
-                   style="width:90px;text-align:right;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px"
-                   onchange="updateMktValor(this.value)" title="Editar valor de marketing deste mês">`
-              : fmt(c.valor)}
-          </td>
-          <td style="padding:9px 8px;text-align:center;border-bottom:1px solid var(--border)">${statusHtml}</td>
-        </tr>`;
-      }).join('')}
-    </tbody>
-  </table>`);
+  set('fixas-list', '<table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr>' +
+    '<th style="text-align:left;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Conta</th>' +
+    '<th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Venc.</th>' +
+    '<th style="text-align:right;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Valor ✎</th>' +
+    '<th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Status ✎</th>' +
+    '</tr></thead><tbody>' +
+    sorted.map(c => {
+      const dia      = getDiaVenc(c, year, month);
+      const dt       = new Date(year, month, dia);
+      const pagoAuto = contaFoiPaga(c, year, month);
+      const isPast   = dt < hoje;
+      const is7      = dt >= hoje && dt <= em7dias;
+
+      // Status override por mês via localStorage
+      const overrideKey = 'fontcell_status_' + c.id + '_' + year + '_' + (month+1);
+      let statusOverride = null;
+      try { statusOverride = localStorage.getItem(overrideKey); } catch(e) {}
+
+      // Status efetivo: override prevalece sobre automático
+      let statusEfetivo;
+      if (statusOverride)     statusEfetivo = statusOverride;
+      else if (pagoAuto)      statusEfetivo = 'pago';
+      else if (isPast)        statusEfetivo = 'vencido';
+      else if (is7)           statusEfetivo = 'em7dias';
+      else                    statusEfetivo = 'aguardando';
+
+      const badges = {
+        pago:       '<span class="tag" style="background:var(--green-dim);color:var(--green)">✓ pago</span>',
+        vencido:    '<span class="tag" style="background:var(--red-dim);color:var(--red)">⚠ vencido</span>',
+        em7dias:    '<span class="tag" style="background:var(--amber-dim);color:var(--amber)">⏰ em 7 dias</span>',
+        aguardando: '<span class="tag" style="background:var(--surface2);color:var(--text3)">aguardando</span>',
+      };
+
+      let rowStyle = '';
+      if      (statusEfetivo === 'vencido') rowStyle = 'background:rgba(240,90,90,.04)';
+      else if (statusEfetivo === 'em7dias') rowStyle = 'background:rgba(240,180,41,.04)';
+
+      const diaLabel = c.tipo === 'util'
+        ? '5° útil<br><span style="font-size:10px;color:var(--text3)">dia ' + dia + '</span>'
+        : 'dia ' + dia;
+
+      const overrideIcon = statusOverride
+        ? '<span style="font-size:9px;color:var(--purple);margin-left:3px" title="Status editado manualmente — selecione automático para restaurar">✎</span>'
+        : '';
+
+      const statusCell =
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:5px">' +
+          '<div style="display:flex;align-items:center;gap:2px">' +
+            (badges[statusEfetivo] || badges.aguardando) + overrideIcon +
+          '</div>' +
+          '<select class="inline-sel" style="font-size:10px;padding:2px 5px;max-width:120px"' +
+            ' title="Corrigir status manualmente"' +
+            ' onchange="setStatusOverride(\'' + c.id + '\',' + year + ',' + (month+1) + ',this.value)">' +
+            '<option value=""'          + (!statusOverride             ? ' selected' : '') + '>— automático —</option>' +
+            '<option value="pago"'      + (statusOverride==='pago'      ? ' selected' : '') + '>✓ pago</option>' +
+            '<option value="vencido"'   + (statusOverride==='vencido'   ? ' selected' : '') + '>⚠ vencido</option>' +
+            '<option value="em7dias"'   + (statusOverride==='em7dias'   ? ' selected' : '') + '>⏰ em 7 dias</option>' +
+            '<option value="aguardando"'+ (statusOverride==='aguardando'? ' selected' : '') + '>aguardando</option>' +
+          '</select>' +
+        '</div>';
+
+      return '<tr style="' + rowStyle + '">' +
+        '<td style="padding:9px 8px;font-size:12px;border-bottom:1px solid var(--border)">' + esc(c.label) +
+          (c.variavel ? '<span style="font-size:10px;color:var(--text3);margin-left:6px">variável</span>' : '') + '</td>' +
+        '<td style="padding:9px 8px;font-size:11px;color:var(--text2);text-align:center;border-bottom:1px solid var(--border)">' + diaLabel + '</td>' +
+        '<td style="padding:9px 8px;text-align:right;border-bottom:1px solid var(--border)" class="amount-neg">' +
+          '<input type="number" value="' + c.valor + '" min="0" step="50"' +
+          ' style="width:90px;text-align:right;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px"' +
+          ' onchange="updateContaValor(\'' + c.id + '\',this.value)"' +
+          ' title="Editar valor desta conta">' +
+        '</td>' +
+        '<td style="padding:9px 8px;text-align:center;border-bottom:1px solid var(--border)">' + statusCell + '</td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table>');
 }
+
 
 function renderTimeline(year, month, hoje, recMes, despMes) {
   const diasNoMes = new Date(year, month+1, 0).getDate();
@@ -2826,26 +2868,51 @@ function renderTimeline(year, month, hoje, recMes, despMes) {
   }).join(''));
 }
 
-// ── Atualizar valor do marketing (editável na projeção) ──
+// ── Atualizar valor do marketing (mantido por compatibilidade) ──
 function updateMktValor(v) {
-  const mkt = CONTAS_FIXAS.find(c => c.id === 'cf10');
-  if (mkt) {
-    mkt.valor = parseFloat(v) || 0;
-    try { localStorage.setItem('fontcell_mkt_valor', mkt.valor); } catch(e) {}
+  updateContaValor('cf10', v);
+}
+
+// ── Atualizar valor de qualquer conta fixa ──
+function updateContaValor(id, v) {
+  const conta = CONTAS_FIXAS.find(c => c.id === id);
+  if (conta) {
+    conta.valor = parseFloat(v) || 0;
+    try { localStorage.setItem('fontcell_conta_valor_' + id, conta.valor); } catch(e) {}
     renderProjecao();
   }
+}
+
+// ── Definir/limpar override de status de uma conta num mês específico ──
+function setStatusOverride(id, year, month, status) {
+  const key = 'fontcell_status_' + id + '_' + year + '_' + month;
+  try {
+    if (status) {
+      localStorage.setItem(key, status);
+    } else {
+      localStorage.removeItem(key); // "" = volta ao automático
+    }
+  } catch(e) {}
+  renderProjecao();
 }
 
 // ══════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════
 async function init() {
-  // Restore saved marketing value
+  // Restaurar valores editados de todas as contas fixas
   try {
+    CONTAS_FIXAS.forEach(c => {
+      const saved = localStorage.getItem('fontcell_conta_valor_' + c.id);
+      if (saved !== null) c.valor = parseFloat(saved) || c.valor;
+    });
+    // Retrocompatibilidade: chave antiga do marketing
     const savedMkt = localStorage.getItem('fontcell_mkt_valor');
     if (savedMkt !== null) {
       const mkt = CONTAS_FIXAS.find(c => c.id === 'cf10');
-      if (mkt) mkt.valor = parseFloat(savedMkt) || mkt.valor;
+      if (mkt && !localStorage.getItem('fontcell_conta_valor_cf10')) {
+        mkt.valor = parseFloat(savedMkt) || mkt.valor;
+      }
     }
   } catch(e) {}
   // Show cached data immediately while fetching from Sheets
