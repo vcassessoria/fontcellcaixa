@@ -154,7 +154,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
   .sit-grid{grid-template-columns:1fr!important;gap:10px!important}
   .grid-2{grid-template-columns:1fr;gap:10px}
   .split-row{grid-template-columns:1fr;gap:8px}
-  .fg-6,.fg-4{grid-template-columns:1fr 1fr!important}
+  .fg-6{grid-template-columns:1fr 1fr!important}
+  .fg-4{grid-template-columns:1fr 1fr!important}
+  /* Form manual de lançamento — campos essenciais em coluna única no mobile */
+  #page-lancamentos .form-grid.fg-6{grid-template-columns:1fr!important}
+  #page-lancamentos .form-grid.fg-4{grid-template-columns:1fr 1fr!important}
+  #page-lancamentos .form-group[style*="grid-column:span 2"]{grid-column:span 1!important}
   .form-inp,.form-sel{font-size:16px}
   .card{padding:14px}
   .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -561,7 +566,7 @@ input[type="file"]{display:none}
   </div>
 
   <div class="card">
-    <div class="card-title">Parcela Guilherme — Compra da Loja <em>R$ 5.000 / mês · dia 20</em></div>
+    <div class="card-title">Parcela Guilherme — Compra da Loja <em>R$ 5.000 / mês · 16×  · jan/2026 → abr/2027</em></div>
     <div id="gui-saldo-devedor" style="display:none;margin-bottom:12px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <div>
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px">Saldo devedor estimado restante</div>
@@ -632,7 +637,7 @@ input[type="file"]{display:none}
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Tipo</th><th>Categoria sugerida</th><th>PF/PJ</th></tr></thead>
+        <thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Tipo</th><th>Categoria ✎</th><th>PF/PJ ✎</th></tr></thead>
         <tbody id="preview-body"></tbody>
       </table>
     </div>
@@ -833,8 +838,10 @@ const getCat = id => ALL_CATS.find(c => c.id === id) || { id:'outro', label:'Out
 // Ordem importa: regras mais específicas primeiro
 // ══════════════════════════════════════════════════
 const RULES = [
-  // ── PARCELA GUILHERME (irmão, compra da loja, R$5k/mês dia 20) ──
-  { kw:'guilherme pg|pix guilherme|guilherme pag|guilherme pgc|pagamento guilherme|parte pagamento guilherme|guilherme pediu pix|guilherme ligou|intera.*guilherme|frete.*guilherme|guilherme empresti', cat:'parcela-gui', tipo:'saida', pfpj:'pj', label:'Parcela Guilherme' },
+  // ── PARCELA GUILHERME (irmão Luis, compra da loja, 16×R$5k, jan/2026→abr/2027)
+  // ATENÇÃO: NÃO capturar genericamente qualquer "Guilherme" — existem outros
+  // Usar SOMENTE quando o lançamento for explicitamente do acordo de compra da loja
+  { kw:'parcela guilherme|parcela gui loja|guilherme compra loja|guilherme parcela loja|pgto guilherme loja|pagamento guilherme loja|guilherme pg loja|pix guilherme irmao|guilherme irmao|gui irmao', cat:'parcela-gui', tipo:'saida', pfpj:'pj', label:'Parcela Guilherme' },
 
   // ── PALOMA (funcionária: salário + comissão + encargos) ──
   { kw:'paloma salario|salario paloma|pagamento paloma|pagamento alanna', cat:'salario-paloma',  tipo:'saida', pfpj:'pj', label:'Salário Paloma' },
@@ -1254,7 +1261,12 @@ function buildPreview(rows) {
           ${catOpts}
         </select>
       </td>
-      <td><span class="tag ${r.pfpj}">${r.pfpj.toUpperCase()}</span></td>
+      <td>
+        <select class="inline-sel" style="width:70px" onchange="previewData[${i}].pfpj=this.value">
+          <option value="pj"${r.pfpj==='pj'?' selected':''}>PJ</option>
+          <option value="pf"${r.pfpj==='pf'?' selected':''}>PF</option>
+        </select>
+      </td>
     </tr>`;
   }).join('');
 
@@ -1451,7 +1463,12 @@ function renderNexPreview() {
           ${catOpts}
         </select>
       </td>
-      <td><span class="tag pj">PJ</span></td>
+      <td>
+        <select class="inline-sel" style="width:70px" onchange="previewData[${i}].pfpj=this.value">
+          <option value="pj" selected>PJ</option>
+          <option value="pf">PF</option>
+        </select>
+      </td>
     </tr>`;
   }).join('');
   document.getElementById('preview-card').style.display = 'block';
@@ -1954,17 +1971,22 @@ function renderPFPJ() {
 
   // Saldo devedor Guilherme — baseado em todas as transações (não só período filtrado)
   const totalGuiGlobal = transactions.filter(x=>x.cat==='parcela-gui').reduce((a,b)=>a+(b.valor||0),0);
-  const DIVIDA_TOTAL_GUI = 120000; // R$ 5.000 × 24 meses (estimativa padrão)
-  const saldoDevedor = Math.max(0, DIVIDA_TOTAL_GUI - totalGuiGlobal);
+  const DIVIDA_TOTAL_GUI = 80000;  // R$ 5.000 × 16 parcelas (jan/2026 → abr/2027)
+  const PARCELAS_TOTAL   = 16;
+  const PARCELA_VALOR    = 5000;
+  const parcelasPagas    = Math.round(totalGuiGlobal / PARCELA_VALOR); // baseado nos lançamentos reais
+  const parcelasRest     = Math.max(0, PARCELAS_TOTAL - parcelasPagas);
+  const saldoDevedor     = Math.max(0, DIVIDA_TOTAL_GUI - totalGuiGlobal);
   const saldoEl  = document.getElementById('gui-saldo-devedor');
   const saldoVal = document.getElementById('gui-saldo-val');
   const saldoDet = document.getElementById('gui-saldo-detail');
-  if (saldoEl && totalGuiGlobal > 0) {
+  if (saldoEl) {
     saldoEl.style.display = 'flex';
     if (saldoVal) saldoVal.textContent = fmt(saldoDevedor);
-    if (saldoDet) saldoDet.innerHTML = `Total pago (histórico): <strong style="color:var(--green)">${fmt(totalGuiGlobal)}</strong><br><span style="color:var(--text3)">Estimativa baseada em dívida total de ${fmt(DIVIDA_TOTAL_GUI)}</span>`;
-  } else if (saldoEl) {
-    saldoEl.style.display = 'none';
+    if (saldoDet) saldoDet.innerHTML = `
+      Total pago: <strong style="color:var(--green)">${fmt(totalGuiGlobal)}</strong>
+      &nbsp;·&nbsp; <span style="color:var(--text3)">${parcelasPagas} de ${PARCELAS_TOTAL} parcelas · ${parcelasRest} restante${parcelasRest!==1?'s':''}</span><br>
+      <span style="color:var(--text3);font-size:10px">Acordo: 16×R$&nbsp;5.000 · jan/2026 → abr/2027 · Total: R$&nbsp;80.000</span>`;
   }
 }
 
