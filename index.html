@@ -700,17 +700,21 @@ input[type="file"]{display:none}
     </div>
     <div id="proj-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
     <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--red-dim);border:1px solid var(--red);display:inline-block"></span>Vencimento hoje/passado</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--amber-dim);border:1px solid var(--amber);display:inline-block"></span>Próximos 7 dias</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--surface2);border:1px solid var(--border);display:inline-block"></span>Futuro</div>
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--green-dim);border:1px solid var(--green);display:inline-block"></span>Pago (lançado)</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--green-dim);border:1px solid var(--green);display:inline-block"></span>Pago</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--amber-dim);border:1px solid var(--amber);display:inline-block"></span>Em aberto</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--red-dim);border:1px solid var(--red);display:inline-block"></span>Atrasado</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3)"><span style="width:10px;height:10px;border-radius:2px;background:var(--surface2);border:1px solid var(--border);display:inline-block"></span>Sem vencimento</div>
     </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:8px">Clique numa conta dentro do calendário para editar valor, vencimento ou status.</div>
   </div>
 
   <div class="grid-2">
     <!-- Contas fixas -->
     <div class="card">
-      <div class="card-title">Contas fixas cadastradas <em id="fixas-count"></em></div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Contas fixas cadastradas <em id="fixas-count"></em></span>
+        <button class="btn btn-primary btn-sm" onclick="abrirContaModal()" style="font-size:11px">+ Nova conta</button>
+      </div>
       <div id="fixas-list"></div>
     </div>
     <!-- Timeline saldo -->
@@ -808,17 +812,20 @@ const CATS = {
     // Fixas loja
     { id:'aluguel',       label:'Aluguel da Loja',                    color:'#c06060' },
     { id:'parcela-gui',   label:'Parcela Guilherme — Compra da Loja', color:'#a855f7' },
-    { id:'util',          label:'Energia / Água / Internet',          color:'#a05050' },
+    { id:'energia',       label:'Energia Elétrica',                   color:'#c2703f' },
+    { id:'agua',          label:'Água',                                color:'#3f95c2' },
+    { id:'internet',      label:'Internet',                           color:'#7a5fc2' },
     // Pessoal / Folha
-    { id:'salario-paloma',  label:'Salário — Paloma',                 color:'#f0b429' },
-    { id:'comissao-paloma', label:'Comissão — Paloma',                color:'#e8a020' },
-    { id:'encargos-paloma', label:'Encargos Paloma (INSS/FGTS)',      color:'#f97316' },
+    { id:'salario-paloma',  label:'Salário — Funcionário',            color:'#f0b429' },
+    { id:'comissao-paloma', label:'Comissão — Funcionário',           color:'#e8a020' },
+    { id:'encargos-paloma', label:'Encargos Funcionário (INSS/FGTS)', color:'#f97316' },
     { id:'prolabore',       label:'Pró-labore Luis',                  color:'#facc15' },
     // Operacional
     { id:'embal',         label:'Embalagens / Materiais',             color:'#a0a0c0' },
     { id:'contab',        label:'Contabilidade / Honorários',         color:'#8b90a8' },
     { id:'mkt',           label:'Marketing / Anúncios',               color:'#9d6fff' },
     { id:'sist',          label:'Sistema / Software',                 color:'#4d9fff' },
+    { id:'iptu',          label:'IPTU da Loja',                       color:'#7a8a3f' },
     // Tributos
     { id:'imp-sn',        label:'Simples Nacional (DAS)',             color:'#fb923c' },
     { id:'taxa-maq',      label:'Taxas de Maquininha',                color:'#ea580c' },
@@ -843,11 +850,11 @@ const RULES = [
   // Usar SOMENTE quando o lançamento for explicitamente do acordo de compra da loja
   { kw:'parcela guilherme|parcela gui loja|guilherme compra loja|guilherme parcela loja|pgto guilherme loja|pagamento guilherme loja|guilherme pg loja|pix guilherme irmao|guilherme irmao|gui irmao', cat:'parcela-gui', tipo:'saida', pfpj:'pj', label:'Parcela Guilherme' },
 
-  // ── PALOMA (funcionária: salário + comissão + encargos) ──
-  { kw:'paloma salario|salario paloma|pagamento paloma|pagamento alanna', cat:'salario-paloma',  tipo:'saida', pfpj:'pj', label:'Salário Paloma' },
-  { kw:'comissao paloma|comissão paloma',                                  cat:'comissao-paloma', tipo:'saida', pfpj:'pj', label:'Comissão Paloma' },
-  { kw:'vale paloma|paloma vale|adiantamento paloma',                      cat:'salario-paloma',  tipo:'saida', pfpj:'pj', label:'Vale Paloma' },
-  { kw:'encargos paloma|inss paloma|fgts paloma',                          cat:'encargos-paloma', tipo:'saida', pfpj:'pj', label:'Encargos Paloma' },
+  // ── FUNCIONÁRIO (salário + comissão + encargos) — kw mantém "paloma" pois é o nome que aparece nos extratos ──
+  { kw:'paloma salario|salario paloma|pagamento paloma|pagamento alanna', cat:'salario-paloma',  tipo:'saida', pfpj:'pj', label:'Salário Funcionário' },
+  { kw:'comissao paloma|comissão paloma',                                  cat:'comissao-paloma', tipo:'saida', pfpj:'pj', label:'Comissão Funcionário' },
+  { kw:'vale paloma|paloma vale|adiantamento paloma',                      cat:'salario-paloma',  tipo:'saida', pfpj:'pj', label:'Vale Funcionário' },
+  { kw:'encargos paloma|inss paloma|fgts paloma',                          cat:'encargos-paloma', tipo:'saida', pfpj:'pj', label:'Encargos Funcionário' },
 
   // ── FORNECEDORES DE PEÇAS — nomes reais ──
   { kw:'alexandre royal|\\broyal\\b',                                      cat:'forn-pecas', tipo:'saida', pfpj:'pj', label:'Alexandre Royal' },
@@ -901,10 +908,13 @@ const RULES = [
   { kw:'infinit|infinitepay',                                               cat:'sist', tipo:'saida', pfpj:'pj', label:'InfinitePay' },
   { kw:'software|saas|licenca|assinatura app',                              cat:'sist', tipo:'saida', pfpj:'pj', label:'Software/assinatura' },
 
-  // ── UTILITIES LOJA ──
-  { kw:'cemig',                                                             cat:'util', tipo:'saida', pfpj:'pj', label:'CEMIG (energia)' },
-  { kw:'copasa',                                                            cat:'util', tipo:'saida', pfpj:'pj', label:'COPASA (água)' },
-  { kw:'internet g6|recarga numero loja',                                   cat:'util', tipo:'saida', pfpj:'pj', label:'Internet loja' },
+  // ── UTILITIES LOJA (separadas: energia, água, internet) ──
+  { kw:'cemig',                                                             cat:'energia', tipo:'saida', pfpj:'pj', label:'CEMIG (energia)' },
+  { kw:'copasa',                                                            cat:'agua', tipo:'saida', pfpj:'pj', label:'COPASA (água)' },
+  { kw:'internet g6|recarga numero loja',                                   cat:'internet', tipo:'saida', pfpj:'pj', label:'Internet loja' },
+
+  // ── IPTU ──
+  { kw:'iptu',                                                              cat:'iptu', tipo:'saida', pfpj:'pj', label:'IPTU da Loja' },
 
   // ── ALUGUEL ──
   { kw:'aluguel loja|aluguel',                                              cat:'aluguel', tipo:'saida', pfpj:'pj', label:'Aluguel loja' },
@@ -1015,13 +1025,18 @@ async function loadData() {
 
     // If first column header is not 'id', sheet may have wrong format
     // Still proceed — just return empty
+    // Migração: lançamentos antigos categorizados como 'util' (antes da separação
+    // em energia/água/internet) são reclassificados como 'energia' por padrão.
+    // O usuário pode reclassificar manualmente na aba Lançamentos se necessário.
+    const LEGACY_CAT_MAP = { util: 'energia' };
+
     transactions = rows.map(r => ({
       id:    r.id    || uid(),
       data:  r.data  || '',
       desc:  r.desc  || '',
       valor: parseFloat(String(r.valor||'0').replace(',','.')) || 0,
       tipo:  r.tipo  || 'entrada',
-      cat:   r.cat   || 'outro',
+      cat:   LEGACY_CAT_MAP[r.cat] || r.cat || 'outro',
       pfpj:  r.pfpj  || 'pj',
       forma: r.forma || '',
       obs:   r.obs   || '',
@@ -1607,9 +1622,10 @@ function calcSaldoProjetado() {
   const despMes= txMes.filter(t=>t.tipo==='saida'  ).reduce((a,b)=>a+(b.valor||0),0);
   const saldoAtual = recMes - despMes;
   const fixasRest  = CONTAS_FIXAS.filter(c => {
-    const dia = getDiaVenc(c, year, month);
-    const dt  = new Date(year, month, dia);
-    return dt >= hoje && !contaFoiPaga(c, year, month) && c.valor > 0;
+    const dia    = getDiaVenc(c, year, month);
+    const dt     = new Date(year, month, dia);
+    const status = getStatusEfetivo(c, year, month, hoje);
+    return dt >= hoje && status !== 'pago' && c.valor > 0;
   }).reduce((a,c)=>a+c.valor, 0);
   return { saldoAtual, saldoProjetado: saldoAtual - fixasRest, fixasRest, recMes, despMes };
 }
@@ -1618,7 +1634,7 @@ function getProximoVencimento() {
   const hoje  = new Date(); hoje.setHours(0,0,0,0);
   const year  = hoje.getFullYear(), month = hoje.getMonth();
   const pendentes = CONTAS_FIXAS
-    .filter(c => c.valor > 0 && !contaFoiPaga(c, year, month))
+    .filter(c => c.valor > 0 && getStatusEfetivo(c, year, month, hoje) !== 'pago')
     .map(c => {
       const dia = getDiaVenc(c, year, month);
       const dt  = new Date(year, month, dia);
@@ -1840,7 +1856,7 @@ function renderMargem() {
     { label:'Personalizados',  recCat:['personaliz'], costCat:['personaliz'] },
     { label:'Outros Eletr.',   recCat:['outros-rec'], costCat:['forn-estoque'] },
   ];
-  const fixedCats = ['aluguel','parcela-gui','util','salario-paloma','comissao-paloma','encargos-paloma','prolabore','contab','sist','imp-sn','frete'];
+  const fixedCats = ['aluguel','parcela-gui','energia','agua','internet','salario-paloma','comissao-paloma','encargos-paloma','prolabore','contab','sist','imp-sn','frete','iptu'];
   const totalFixed = t.filter(x=>x.tipo==='saida'&&fixedCats.includes(x.cat)).reduce((a,b)=>a+(b.valor||0),0);
   const totalRec   = t.filter(x=>x.tipo==='entrada').reduce((a,b)=>a+(b.valor||0),0);
 
@@ -2431,9 +2447,9 @@ function abrirRelatorio() {
   // Top 3 maiores gastos individuais
   const top3 = txMes.filter(t=>t.tipo==='saida').sort((a,b)=>(b.valor||0)-(a.valor||0)).slice(0,3);
 
-  // Status contas fixas
+  // Status contas fixas (respeita overrides manuais)
   const contasStatus = CONTAS_FIXAS.map(c => {
-    const pago = contaFoiPaga(c, year, month);
+    const pago = getStatusEfetivo(c, year, month, new Date(year, month, getDiaVenc(c, year, month))) === 'pago';
     return { label: c.label, valor: c.valor, pago };
   });
 
@@ -2568,16 +2584,16 @@ function showToast(msg, type='success') {
 const CONTAS_FIXAS = [
   { id:'cf01', label:'Aluguel da Loja',               cat:'aluguel',        valor:5241,  dia:15,       tipo:'fixo' },
   { id:'cf02', label:'Parcela Guilherme',              cat:'parcela-gui',    valor:5000,  dia:20,       tipo:'fixo' },
-  { id:'cf03', label:'Salário Paloma',                 cat:'salario-paloma', valor:1613,  dia:0,        tipo:'util' }, // 5º dia útil
-  { id:'cf04', label:'Comissão Paloma',                cat:'comissao-paloma',valor:650,   dia:15,       tipo:'fixo' },
-  { id:'cf05', label:'Consultoria Financeira',         cat:'contab',         valor:1000,  dia:10,       tipo:'fixo' },
+  { id:'cf03', label:'Salário Funcionário',            cat:'salario-paloma', valor:1613,  dia:0,        tipo:'util' }, // 5º dia útil
+  { id:'cf04', label:'Comissão Funcionário',           cat:'comissao-paloma',valor:650,   dia:15,       tipo:'fixo' },
+  { id:'cf05', label:'Consultoria Victor',             cat:'contab',         valor:1000,  dia:10,       tipo:'fixo' },
   { id:'cf06', label:'Contabilidade (Renato)',         cat:'contab',         valor:360,   dia:15,       tipo:'fixo' },
-  { id:'cf07', label:'Energia Elétrica (CEMIG)',       cat:'util',           valor:450,   dia:11,       tipo:'fixo' },
-  { id:'cf08', label:'Água (COPASA)',                  cat:'util',           valor:80,    dia:12,       tipo:'fixo' },
-  { id:'cf09', label:'Internet',                       cat:'util',           valor:100,   dia:26,       tipo:'fixo' },
-  { id:'cf10', label:'Marketing / Anúncios',            cat:'mkt',            valor:500,   dia:0,        tipo:'util', variavel:true }, // 5º dia útil — valor editável
+  { id:'cf07', label:'Energia Elétrica (CEMIG)',       cat:'energia',        valor:450,   dia:11,       tipo:'fixo' },
+  { id:'cf08', label:'Água (COPASA)',                  cat:'agua',           valor:80,    dia:12,       tipo:'fixo' },
+  { id:'cf09', label:'Internet',                       cat:'internet',       valor:100,   dia:26,       tipo:'fixo' },
+  { id:'cf11', label:'IPTU da Loja',                   cat:'iptu',           valor:0,     dia:10,       tipo:'fixo' },
 ];
-// Total fixo mensal estimado: R$ 14.494 fixos + marketing variável (5º dia útil)
+// Total fixo mensal estimado: R$ 12.994 (+ IPTU a definir pelo Victor) + contas adicionadas manualmente
 
 // ── Calcular 5º dia útil de um mês ──
 function quintoUtil(year, month) {
@@ -2606,7 +2622,7 @@ function getDataVenc(conta, year, month) {
 // ── Verificar se uma conta já foi paga (existe lançamento correspondente) ──
 function contaFoiPaga(conta, year, month) {
   const mes = String(year) + '-' + String(month+1).padStart(2,'0');
-  // Para contas variáveis (marketing), verifica só categoria + mês
+  // Para contas variáveis, verifica só categoria + mês
   if (conta.variavel) {
     return transactions.some(t =>
       t.tipo === 'saida' && t.cat === conta.cat && t.data && t.data.startsWith(mes)
@@ -2620,6 +2636,41 @@ function contaFoiPaga(conta, year, month) {
     t.data && t.data.startsWith(mes) &&
     Math.abs((t.valor||0) - conta.valor) / conta.valor < 0.15
   );
+}
+
+// ── Status manual (override) salvo pelo usuário para uma conta num mês ──
+function getStatusOverride(id, year, month) {
+  const key = 'fontcell_status_' + id + '_' + year + '_' + month;
+  try { return localStorage.getItem(key) || null; } catch(e) { return null; }
+}
+
+// ── Status efetivo de uma conta: 'pago' | 'aberto' | 'atrasado' ──
+// Prioridade: status lançado manualmente > detectado automático via lançamento > data de vencimento
+function getStatusEfetivo(conta, year, month, hoje) {
+  const override = getStatusOverride(conta.id, year, month+1);
+  if (override === 'pago' || override === 'aberto' || override === 'atrasado') return override;
+  if (contaFoiPaga(conta, year, month)) return 'pago';
+  const dt = getDataVenc(conta, year, month);
+  return dt < hoje ? 'atrasado' : 'aberto';
+}
+
+// ── Contas fixas adicionadas manualmente pelo usuário (persistidas) ──
+function carregarContasCustom() {
+  try {
+    const raw = localStorage.getItem('fontcell_custom_contas');
+    if (!raw) return;
+    const lista = JSON.parse(raw);
+    lista.forEach(c => {
+      if (!CONTAS_FIXAS.some(existing => existing.id === c.id)) CONTAS_FIXAS.push(c);
+    });
+  } catch(e) {}
+}
+
+function salvarContasCustomStorage() {
+  try {
+    const custom = CONTAS_FIXAS.filter(c => c.custom);
+    localStorage.setItem('fontcell_custom_contas', JSON.stringify(custom));
+  } catch(e) {}
 }
 
 function navegarMesProj(delta) {
@@ -2675,9 +2726,9 @@ function renderProjecao() {
 
   // ── KPI: saldo projetado fim do mês ──
   const fixasRestantes = CONTAS_FIXAS.filter(c => {
-    const dt   = getDataVenc(c, year, month);
-    const pago = contaFoiPaga(c, year, month);
-    return dt >= hoje && !pago;
+    const dt     = getDataVenc(c, year, month);
+    const status = getStatusEfetivo(c, year, month, hoje);
+    return dt >= hoje && status !== 'pago';
   }).reduce((a,c) => a+c.valor, 0);
   const saldoFim = saldoAtual - fixasRestantes;
   set('proj-saldo-fim', fmt(saldoFim));
@@ -2723,21 +2774,23 @@ function renderCalendario(hoje, year, month, em7dias) {
     const dt    = new Date(year, month, d);
     const contas = contasPorDia[d] || [];
     const isHoje  = dt.getTime() === hoje.getTime();
-    const isPast  = dt < hoje;
-    const is7dias = dt > hoje && dt <= em7dias;
 
     let bg='var(--surface2)', border='var(--border)', titleColor='var(--text3)';
     if (contas.length > 0) {
-      const pago = contas.every(c => contaFoiPaga(c, year, month));
-      if (pago)            { bg='var(--green-dim)';  border='var(--green)';  titleColor='var(--green)'; }
-      else if (isPast||isHoje) { bg='var(--red-dim)'; border='var(--red)';    titleColor='var(--red)'; }
-      else if (is7dias)    { bg='var(--amber-dim)';  border='var(--amber)';  titleColor='var(--amber)'; }
+      const statuses = contas.map(c => getStatusEfetivo(c, year, month, hoje));
+      const temAtrasado = statuses.includes('atrasado');
+      const tudoPago     = statuses.every(s => s === 'pago');
+      if (tudoPago)          { bg='var(--green-dim)'; border='var(--green)'; titleColor='var(--green)'; }
+      else if (temAtrasado)  { bg='var(--red-dim)';   border='var(--red)';   titleColor='var(--red)'; }
+      else                   { bg='var(--amber-dim)'; border='var(--amber)'; titleColor='var(--amber)'; }
     }
 
     const hojeRing = isHoje ? 'box-shadow:0 0 0 2px var(--accent);' : '';
     const contasHtml = contas.map(c => {
-      const pago = contaFoiPaga(c, year, month);
-      return `<div style="font-size:9px;line-height:1.3;color:${pago?'var(--green)':titleColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pago?'✓ ':''} ${c.label.split(' ')[0]}</div>`;
+      const st = getStatusEfetivo(c, year, month, hoje);
+      const icon  = st === 'pago' ? '✓' : st === 'atrasado' ? '⚠' : '●';
+      const cor   = st === 'pago' ? 'var(--green)' : st === 'atrasado' ? 'var(--red)' : 'var(--amber)';
+      return `<div style="font-size:9px;line-height:1.3;color:${cor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="event.stopPropagation();abrirContaModal('${c.id}')">${icon} ${esc(c.label.split(' ')[0])}</div>`;
     }).join('');
 
     cells.push(`<div style="background:${bg};border:1px solid ${border};border-radius:6px;padding:5px 6px;min-height:52px;${hojeRing}cursor:${contas.length?'pointer':'default'}" title="${contas.map(c=>c.label+': '+fmt(c.valor)).join(' | ')||''}">
@@ -2758,69 +2811,63 @@ function renderFixasList(year, month, hoje, em7dias) {
   set('fixas-list', '<table style="width:100%;border-collapse:collapse">' +
     '<thead><tr>' +
     '<th style="text-align:left;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Conta</th>' +
-    '<th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Venc.</th>' +
+    '<th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Vencimento ✎</th>' +
     '<th style="text-align:right;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Valor ✎</th>' +
     '<th style="text-align:center;font-size:10px;color:var(--text3);padding:0 8px 8px;border-bottom:1px solid var(--border)">Status ✎</th>' +
+    '<th style="width:24px;border-bottom:1px solid var(--border)"></th>' +
     '</tr></thead><tbody>' +
     sorted.map(c => {
       const dia      = getDiaVenc(c, year, month);
-      const dt       = new Date(year, month, dia);
-      const pagoAuto = contaFoiPaga(c, year, month);
-      const isPast   = dt < hoje;
-      const is7      = dt >= hoje && dt <= em7dias;
-
-      // Status override por mês via localStorage
-      const overrideKey = 'fontcell_status_' + c.id + '_' + year + '_' + (month+1);
-      let statusOverride = null;
-      try { statusOverride = localStorage.getItem(overrideKey); } catch(e) {}
-
-      // Status efetivo: override prevalece sobre automático
-      let statusEfetivo;
-      if (statusOverride)     statusEfetivo = statusOverride;
-      else if (pagoAuto)      statusEfetivo = 'pago';
-      else if (isPast)        statusEfetivo = 'vencido';
-      else if (is7)           statusEfetivo = 'em7dias';
-      else                    statusEfetivo = 'aguardando';
+      const statusEfetivo = getStatusEfetivo(c, year, month, hoje);
+      const statusOverride = getStatusOverride(c.id, year, month+1);
 
       const badges = {
-        pago:       '<span class="tag" style="background:var(--green-dim);color:var(--green)">✓ pago</span>',
-        vencido:    '<span class="tag" style="background:var(--red-dim);color:var(--red)">⚠ vencido</span>',
-        em7dias:    '<span class="tag" style="background:var(--amber-dim);color:var(--amber)">⏰ em 7 dias</span>',
-        aguardando: '<span class="tag" style="background:var(--surface2);color:var(--text3)">aguardando</span>',
+        pago:     '<span class="tag" style="background:var(--green-dim);color:var(--green)">✓ pago</span>',
+        atrasado: '<span class="tag" style="background:var(--red-dim);color:var(--red)">⚠ atrasado</span>',
+        aberto:   '<span class="tag" style="background:var(--amber-dim);color:var(--amber)">● em aberto</span>',
       };
 
       let rowStyle = '';
-      if      (statusEfetivo === 'vencido') rowStyle = 'background:rgba(240,90,90,.04)';
-      else if (statusEfetivo === 'em7dias') rowStyle = 'background:rgba(240,180,41,.04)';
-
-      const diaLabel = c.tipo === 'util'
-        ? '5° útil<br><span style="font-size:10px;color:var(--text3)">dia ' + dia + '</span>'
-        : 'dia ' + dia;
+      if      (statusEfetivo === 'atrasado') rowStyle = 'background:rgba(240,90,90,.04)';
+      else if (statusEfetivo === 'aberto')   rowStyle = 'background:rgba(240,180,41,.03)';
 
       const overrideIcon = statusOverride
         ? '<span style="font-size:9px;color:var(--purple);margin-left:3px" title="Status editado manualmente — selecione automático para restaurar">✎</span>'
         : '';
 
+      const vencCell = c.tipo === 'util'
+        ? '<div style="display:flex;flex-direction:column;align-items:center;gap:3px">' +
+            '<span style="font-size:10px;color:var(--text3)">5º útil (dia ' + dia + ')</span>' +
+            '<button class="btn btn-ghost btn-sm" style="font-size:9px;padding:2px 6px" onclick="updateContaTipo(\'' + c.id + '\',false)" title="Trocar para dia fixo">usar dia fixo</button>' +
+          '</div>'
+        : '<div style="display:flex;flex-direction:column;align-items:center;gap:3px">' +
+            '<input type="number" value="' + dia + '" min="1" max="31" style="width:48px;text-align:center;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 4px;border-radius:4px;font-size:11px" onchange="updateContaDia(\'' + c.id + '\',this.value)" title="Editar dia de vencimento">' +
+            '<button class="btn btn-ghost btn-sm" style="font-size:9px;padding:2px 6px" onclick="updateContaTipo(\'' + c.id + '\',true)" title="Trocar para 5º dia útil">5º útil</button>' +
+          '</div>';
+
       const statusCell =
         '<div style="display:flex;flex-direction:column;align-items:center;gap:5px">' +
           '<div style="display:flex;align-items:center;gap:2px">' +
-            (badges[statusEfetivo] || badges.aguardando) + overrideIcon +
+            (badges[statusEfetivo] || badges.aberto) + overrideIcon +
           '</div>' +
           '<select class="inline-sel" style="font-size:10px;padding:2px 5px;max-width:120px"' +
             ' title="Corrigir status manualmente"' +
             ' onchange="setStatusOverride(\'' + c.id + '\',' + year + ',' + (month+1) + ',this.value)">' +
-            '<option value=""'          + (!statusOverride             ? ' selected' : '') + '>— automático —</option>' +
-            '<option value="pago"'      + (statusOverride==='pago'      ? ' selected' : '') + '>✓ pago</option>' +
-            '<option value="vencido"'   + (statusOverride==='vencido'   ? ' selected' : '') + '>⚠ vencido</option>' +
-            '<option value="em7dias"'   + (statusOverride==='em7dias'   ? ' selected' : '') + '>⏰ em 7 dias</option>' +
-            '<option value="aguardando"'+ (statusOverride==='aguardando'? ' selected' : '') + '>aguardando</option>' +
+            '<option value=""'         + (!statusOverride              ? ' selected' : '') + '>— automático —</option>' +
+            '<option value="pago"'     + (statusOverride==='pago'      ? ' selected' : '') + '>✓ pago</option>' +
+            '<option value="aberto"'   + (statusOverride==='aberto'    ? ' selected' : '') + '>● em aberto</option>' +
+            '<option value="atrasado"' + (statusOverride==='atrasado'  ? ' selected' : '') + '>⚠ atrasado</option>' +
           '</select>' +
         '</div>';
 
+      const delBtn = c.custom
+        ? '<button class="btn btn-ghost btn-sm" style="padding:3px 6px;font-size:11px" onclick="excluirContaFixa(\'' + c.id + '\')" title="Excluir conta">🗑</button>'
+        : '';
+
       return '<tr style="' + rowStyle + '">' +
         '<td style="padding:9px 8px;font-size:12px;border-bottom:1px solid var(--border)">' + esc(c.label) +
-          (c.variavel ? '<span style="font-size:10px;color:var(--text3);margin-left:6px">variável</span>' : '') + '</td>' +
-        '<td style="padding:9px 8px;font-size:11px;color:var(--text2);text-align:center;border-bottom:1px solid var(--border)">' + diaLabel + '</td>' +
+          (c.custom ? '<span style="font-size:10px;color:var(--text3);margin-left:6px">manual</span>' : '') + '</td>' +
+        '<td style="padding:9px 8px;border-bottom:1px solid var(--border);text-align:center">' + vencCell + '</td>' +
         '<td style="padding:9px 8px;text-align:right;border-bottom:1px solid var(--border)" class="amount-neg">' +
           '<input type="number" value="' + c.valor + '" min="0" step="50"' +
           ' style="width:90px;text-align:right;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px"' +
@@ -2828,6 +2875,7 @@ function renderFixasList(year, month, hoje, em7dias) {
           ' title="Editar valor desta conta">' +
         '</td>' +
         '<td style="padding:9px 8px;text-align:center;border-bottom:1px solid var(--border)">' + statusCell + '</td>' +
+        '<td style="padding:9px 8px;text-align:center;border-bottom:1px solid var(--border)">' + delBtn + '</td>' +
         '</tr>';
     }).join('') +
     '</tbody></table>');
@@ -2848,7 +2896,7 @@ function renderTimeline(year, month, hoje, recMes, despMes) {
   const timeline = [];
   for (let d = hoje.getDate(); d <= diasNoMes; d++) {
     const contas = contasPorDia[d] || [];
-    const saida  = contas.filter(c => !contaFoiPaga(c, year, month) && c.valor > 0).reduce((a,c)=>a+c.valor, 0);
+    const saida  = contas.filter(c => getStatusEfetivo(c, year, month, hoje) !== 'pago' && c.valor > 0).reduce((a,c)=>a+c.valor, 0);
     if (saida > 0) saldo -= saida;
     if (contas.length > 0 || d === hoje.getDate()) {
       timeline.push({ dia: d, saldo, saida, contas, isHoje: d===hoje.getDate() });
@@ -2865,7 +2913,7 @@ function renderTimeline(year, month, hoje, recMes, despMes) {
     const pct   = Math.max(0, Math.min(100, ((t.saldo - minS) / range) * 100));
     const cor   = t.saldo >= 0 ? 'var(--green-mid)' : 'var(--red-mid)';
     const label = t.isHoje ? '<span style="font-size:9px;color:var(--accent)"> hoje</span>' : '';
-    const contasLabel = t.contas.filter(c=>!contaFoiPaga(c,year,month)).map(c=>c.label).join(', ');
+    const contasLabel = t.contas.filter(c=>getStatusEfetivo(c,year,month,hoje)!=='pago').map(c=>c.label).join(', ');
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
       <div style="font-size:11px;color:var(--text3);width:36px;flex-shrink:0">dia ${t.dia}${label}</div>
       <div style="flex:1;height:18px;background:var(--surface2);border-radius:3px;overflow:hidden;position:relative">
@@ -2876,11 +2924,6 @@ function renderTimeline(year, month, hoje, recMes, despMes) {
   }).join(''));
 }
 
-// ── Atualizar valor do marketing (mantido por compatibilidade) ──
-function updateMktValor(v) {
-  updateContaValor('cf10', v);
-}
-
 // ── Atualizar valor de qualquer conta fixa ──
 function updateContaValor(id, v) {
   const conta = CONTAS_FIXAS.find(c => c.id === id);
@@ -2889,6 +2932,42 @@ function updateContaValor(id, v) {
     try { localStorage.setItem('fontcell_conta_valor_' + id, conta.valor); } catch(e) {}
     renderProjecao();
   }
+}
+
+// ── Atualizar dia de vencimento de uma conta ──
+function updateContaDia(id, v) {
+  const conta = CONTAS_FIXAS.find(c => c.id === id);
+  if (conta) {
+    const dia = Math.max(1, Math.min(31, parseInt(v) || conta.dia));
+    conta.dia = dia;
+    try { localStorage.setItem('fontcell_conta_dia_' + id, dia); } catch(e) {}
+    if (conta.custom) salvarContasCustomStorage();
+    renderProjecao();
+    showToast('Vencimento atualizado', 'success');
+  }
+}
+
+// ── Trocar entre "dia fixo" e "5º dia útil" ──
+function updateContaTipo(id, isUtil) {
+  const conta = CONTAS_FIXAS.find(c => c.id === id);
+  if (conta) {
+    conta.tipo = isUtil ? 'util' : 'fixo';
+    try { localStorage.setItem('fontcell_conta_tipo_' + id, conta.tipo); } catch(e) {}
+    if (conta.custom) salvarContasCustomStorage();
+    renderProjecao();
+  }
+}
+
+// ── Excluir uma conta adicionada manualmente ──
+function excluirContaFixa(id) {
+  const conta = CONTAS_FIXAS.find(c => c.id === id);
+  if (!conta || !conta.custom) return;
+  if (!confirm('Excluir a conta "' + conta.label + '"?')) return;
+  const idx = CONTAS_FIXAS.findIndex(c => c.id === id);
+  if (idx >= 0) CONTAS_FIXAS.splice(idx, 1);
+  salvarContasCustomStorage();
+  renderProjecao();
+  showToast('Conta excluída', 'success');
 }
 
 // ── Definir/limpar override de status de uma conta num mês específico ──
@@ -2905,23 +2984,104 @@ function setStatusOverride(id, year, month, status) {
 }
 
 // ══════════════════════════════════════════════════
-// INIT
+// MODAL — Nova conta / Editar conta (Projeção)
 // ══════════════════════════════════════════════════
+let contaModalEditId = null;
+let contaModalTipoUtil = false;
+
+function abrirContaModal(id) {
+  contaModalEditId = id || null;
+  const conta = id ? CONTAS_FIXAS.find(c => c.id === id) : null;
+  contaModalTipoUtil = conta ? conta.tipo === 'util' : false;
+
+  document.getElementById('conta-modal-title').textContent = conta ? 'Editar conta' : 'Nova conta';
+  document.getElementById('conta-nome').value  = conta ? conta.label : '';
+  document.getElementById('conta-valor').value = conta ? conta.valor : '';
+  document.getElementById('conta-dia').value   = conta ? conta.dia : '';
+
+  // Popular select de categorias (apenas despesas)
+  const sel = document.getElementById('conta-cat');
+  sel.innerHTML = CATS.despesa.map(c => '<option value="'+c.id+'"'+(conta&&conta.cat===c.id?' selected':'')+'>'+esc(c.label)+'</option>').join('');
+  if (!conta) sel.value = 'outro';
+
+  document.getElementById('conta-del-btn').style.display = (conta && conta.custom) ? 'inline-flex' : 'none';
+  atualizarContaTipoUI();
+  document.getElementById('conta-modal-backdrop').classList.add('open');
+}
+
+function fecharContaModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('conta-modal-backdrop').classList.remove('open');
+}
+
+function setContaTipo(isUtil) {
+  contaModalTipoUtil = isUtil;
+  atualizarContaTipoUI();
+}
+
+function atualizarContaTipoUI() {
+  document.getElementById('conta-tipo-fixo').className  = 'qtype-btn' + (!contaModalTipoUtil ? ' active-entrada' : '');
+  document.getElementById('conta-tipo-util').className  = 'qtype-btn' + (contaModalTipoUtil ? ' active-entrada' : '');
+  document.getElementById('conta-dia-wrap').style.display = contaModalTipoUtil ? 'none' : 'block';
+}
+
+function salvarContaModal() {
+  const nome  = document.getElementById('conta-nome').value.trim();
+  const cat   = document.getElementById('conta-cat').value;
+  const valor = parseFloat(document.getElementById('conta-valor').value) || 0;
+  const dia   = Math.max(1, Math.min(31, parseInt(document.getElementById('conta-dia').value) || 10));
+  const tipo  = contaModalTipoUtil ? 'util' : 'fixo';
+
+  if (!nome) { showToast('Informe o nome da conta', 'error'); return; }
+
+  if (contaModalEditId) {
+    // Editar existente
+    const conta = CONTAS_FIXAS.find(c => c.id === contaModalEditId);
+    if (conta) {
+      conta.label = nome; conta.cat = cat; conta.valor = valor; conta.dia = dia; conta.tipo = tipo;
+      try {
+        localStorage.setItem('fontcell_conta_valor_' + conta.id, valor);
+        localStorage.setItem('fontcell_conta_dia_'   + conta.id, dia);
+        localStorage.setItem('fontcell_conta_tipo_'  + conta.id, tipo);
+        localStorage.setItem('fontcell_conta_label_' + conta.id, nome);
+      } catch(e) {}
+      if (conta.custom) salvarContasCustomStorage();
+    }
+  } else {
+    // Nova conta
+    const novaConta = { id:'custom_' + uid(), label:nome, cat, valor, dia, tipo, custom:true };
+    CONTAS_FIXAS.push(novaConta);
+    salvarContasCustomStorage();
+  }
+
+  fecharContaModal();
+  renderProjecao();
+  showToast('Conta salva', 'success');
+}
+
+function excluirContaModal() {
+  if (contaModalEditId) {
+    fecharContaModal();
+    excluirContaFixa(contaModalEditId);
+  }
+}
+
+
 async function init() {
-  // Restaurar valores editados de todas as contas fixas
+  // Carregar contas adicionadas manualmente pelo usuário
+  carregarContasCustom();
+  // Restaurar valores/vencimentos/nomes editados de todas as contas fixas
   try {
     CONTAS_FIXAS.forEach(c => {
-      const saved = localStorage.getItem('fontcell_conta_valor_' + c.id);
-      if (saved !== null) c.valor = parseFloat(saved) || c.valor;
+      const savedValor = localStorage.getItem('fontcell_conta_valor_' + c.id);
+      if (savedValor !== null) c.valor = parseFloat(savedValor) || c.valor;
+      const savedDia = localStorage.getItem('fontcell_conta_dia_' + c.id);
+      if (savedDia !== null) c.dia = parseInt(savedDia) || c.dia;
+      const savedTipo = localStorage.getItem('fontcell_conta_tipo_' + c.id);
+      if (savedTipo === 'fixo' || savedTipo === 'util') c.tipo = savedTipo;
+      const savedLabel = localStorage.getItem('fontcell_conta_label_' + c.id);
+      if (savedLabel) c.label = savedLabel;
     });
-    // Retrocompatibilidade: chave antiga do marketing
-    const savedMkt = localStorage.getItem('fontcell_mkt_valor');
-    if (savedMkt !== null) {
-      const mkt = CONTAS_FIXAS.find(c => c.id === 'cf10');
-      if (mkt && !localStorage.getItem('fontcell_conta_valor_cf10')) {
-        mkt.valor = parseFloat(savedMkt) || mkt.valor;
-      }
-    }
   } catch(e) {}
   // Show cached data immediately while fetching from Sheets
   transactions = cacheLoad();
@@ -2940,6 +3100,26 @@ async function init() {
 
 init();
 </script>
+<!-- CONTA MODAL (Projeção — nova/editar conta fixa) -->
+<div class="qmodal-backdrop" id="conta-modal-backdrop" onclick="fecharContaModal(event)">
+  <div class="qmodal" id="conta-modal">
+    <div class="qmodal-handle"></div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:16px;text-align:center" id="conta-modal-title">Nova conta</div>
+    <input type="text" class="qdesc-input" id="conta-nome" placeholder="Nome da conta (ex: IPTU da Loja)">
+    <select class="qforma-select" id="conta-cat"></select>
+    <input type="number" class="qdesc-input" id="conta-valor" placeholder="Valor (R$)" min="0" step="10" inputmode="decimal">
+    <div class="qtype-toggle">
+      <div class="qtype-btn active-entrada" id="conta-tipo-fixo" onclick="setContaTipo(false)">Dia fixo</div>
+      <div class="qtype-btn" id="conta-tipo-util" onclick="setContaTipo(true)">5º dia útil</div>
+    </div>
+    <div id="conta-dia-wrap">
+      <input type="number" class="qdesc-input" id="conta-dia" placeholder="Dia do vencimento (1–31)" min="1" max="31">
+    </div>
+    <button class="qconfirm-btn" onclick="salvarContaModal()">Salvar conta</button>
+    <button class="btn btn-ghost btn-sm" id="conta-del-btn" style="width:100%;margin-top:10px;display:none;justify-content:center" onclick="excluirContaModal()">🗑 Excluir esta conta</button>
+  </div>
+</div>
+
 <!-- FAB LANÇAMENTO RÁPIDO -->
 <button class="fab" onclick="abrirQuickModal()" title="Lançamento rápido">+</button>
 
